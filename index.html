@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>동물과 에너지 진단클리닉 — 형성평가</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<!--
+  ┌──────────────────────────────────────────────────────────────┐
+  │  선생님용 편집 안내                                          │
+  ├──────────────────────────────────────────────────────────────┤
+  │  ① 문제·환자 내용을 바꾸고 싶을 때                           │
+  │     → 아래 <script id="patient-data"> 안의 PATIENTS 를 수정  │
+  │       (환자 정보, 주 호소 증상, 바이탈, 검사 결과, 문항)     │
+  │  ② 병원 이름·진료과 이름·난이도 이름                         │
+  │     → 같은 곳의 CONFIG 를 수정                               │
+  │  ③ 디자인(색·글자 크기)                                      │
+  │     → 바로 아래 <style> 안의 :root { --변수 } 를 수정        │
+  │  ④ 정답 확인용 화면                                          │
+  │     → 파일 주소 끝에 ?key=1 을 붙여 열면 문항 아래에         │
+  │       정답이 회색 글씨로 보입니다 (학생에게는 알려주지 마세요)│
+  │  ⑤ 브라우저 개발자도구(F12) 콘솔에서                         │
+  │     기관계별 문항 수 점검표를 볼 수 있습니다                 │
+  └──────────────────────────────────────────────────────────────┘
+-->
+
+<style>
+:root{
+  --desk:#D8E2E1; --board:#4A6B68; --board-d:#37524F;
+  --paper:#FFFEFA; --paper-edge:#E6E1D2;
+  --line:#DAD5C6; --line2:#B8B29F;
+  --ink:#1E2B2A; --ink2:#566664; --ink3:#8A9795;
+  --teal:#1F7A70; --teal-d:#155850; --teal-bg:#E3F1EE;
+  --red:#C0392B; --ok:#2E8B57; --ok-bg:#E4F4EA; --bad:#C1394E; --bad-bg:#FBE9EC; --warn:#A8730F; --warn-bg:#FBF0DA;
+  --mon:#0A1517; --mon2:#10222A; --mon-line:#1F3A3F;
+}
+/* 기관계별 색 (문항 왼쪽 띠, 담당의 칩, 결과표 위쪽 선) */
+.s-dig{--sc:#C96A34;--sb:#FBEEE3}
+.s-cir{--sc:#B3404F;--sb:#FAE7E9}
+.s-res{--sc:#3E7CA6;--sb:#E7F0F7}
+.s-exc{--sc:#6C5B9E;--sb:#ECE8F6}
+
+*{box-sizing:border-box}
+.hidden{display:none!important}
+html,body{margin:0;min-height:100%}
+html{scroll-padding-top:10px}
+body{
+  font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  color:var(--ink);background:var(--desk);
+  background-image:radial-gradient(900px 500px at 15% -5%,#EEF4F3 0,transparent 60%),radial-gradient(#C2D1CF 1px,transparent 1.2px);
+  background-size:auto,22px 22px;
+  -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.mono{font-family:'Space Mono','Consolas','Courier New',monospace}
+button,input{font-family:inherit}
+:focus-visible{outline:3px solid #F2B84B;outline-offset:2px}
+
+#app{max-width:900px;margin:0 auto;padding:16px 12px 56px}
+
+/* ---------- 대기 번호표 ---------- */
+.queue{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:0 0 16px}
+.qt{width:30px;height:30px;border-radius:50%;background:#fff;border:2px solid var(--line2);
+  font:700 12px 'Space Mono',monospace;display:flex;align-items:center;justify-content:center;color:var(--ink2)}
+.qt.gap{margin-right:10px}
+.qt.done{background:var(--teal);border-color:var(--teal);color:#fff}
+.qt.cur{border-color:var(--teal);color:var(--teal);box-shadow:0 0 0 4px rgba(31,122,112,.2)}
+
+/* ---------- 클립보드 ---------- */
+.clipboard{position:relative;background:var(--board);border-radius:18px;padding:34px 14px 16px;
+  box-shadow:0 2px 0 var(--board-d),0 18px 40px rgba(20,40,38,.3)}
+.clip{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:124px;height:40px;border-radius:9px 9px 5px 5px;
+  background:linear-gradient(#E3E8E9,#A6B0B2);box-shadow:0 3px 6px rgba(0,0,0,.3)}
+.clip::after{content:"";position:absolute;left:50%;top:11px;transform:translateX(-50%);width:72px;height:12px;border-radius:6px;background:#75807F;box-shadow:inset 0 2px 3px rgba(0,0,0,.45)}
+.paper{background:var(--paper);border-radius:5px;box-shadow:0 1px 0 var(--paper-edge);position:relative;overflow:hidden;padding-bottom:20px}
+
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px 12px;border-bottom:3px double var(--ink)}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.cross{width:38px;height:38px;border-radius:9px;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex:none}
+.brand-name{font-weight:900;font-size:17px;letter-spacing:-.01em;line-height:1.25}
+.brand-sub{font-size:12px;color:var(--ink2)}
+.head-right{text-align:right;font-size:11px;color:var(--ink2);line-height:1.5;flex:none}
+.barcode{height:20px;width:112px;margin:0 0 3px auto;opacity:.75;
+  background:repeating-linear-gradient(90deg,#222 0 2px,transparent 2px 4px,#222 4px 5px,transparent 5px 8px,#222 8px 11px,transparent 11px 12px)}
+
+/* ---------- 환자 정보표 ---------- */
+.info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line2);margin:16px 18px 0;border:1.5px solid var(--ink);border-radius:4px;overflow:hidden}
+.ic{background:var(--paper);padding:8px 12px;min-width:0}
+.ic.w2{grid-column:span 2}.ic.w4{grid-column:span 4}
+.il{display:block;font-size:11px;font-weight:700;color:var(--ink3);margin-bottom:2px}
+.iv{font-size:15px;font-weight:700;word-break:keep-all}
+.lv{display:inline-block;font-size:12px;font-weight:700;padding:1px 9px;border-radius:99px;background:#EEF1F0;color:var(--ink2)}
+.lv.l2{background:var(--warn-bg);color:var(--warn)}.lv.l3{background:var(--bad-bg);color:var(--bad)}
+.dchips{display:flex;flex-wrap:wrap;gap:5px}
+.dchip{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:99px;color:var(--sc);background:var(--sb);white-space:nowrap}
+
+/* ---------- 섹션(차트 칸) ---------- */
+.sec{margin:16px 18px 0;border:1.5px solid var(--ink);border-radius:4px;background:var(--paper);scroll-margin-top:10px}
+.sec.reveal{animation:reveal .45s ease-out}
+@keyframes reveal{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.sec-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:#ECF2F1;border-bottom:1.5px solid var(--ink);font-weight:900;font-size:14.5px}
+.sec-no{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;font-size:12px;margin-right:7px}
+.sec-sub{font-size:11.5px;font-weight:500;color:var(--ink2)}
+.sec-body{padding:14px}
+.confirm-bar{display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 14px 12px;min-height:50px}
+.cb-hint{font-size:12px;color:var(--ink3)}
+.stamp{display:inline-block;border:2.5px solid var(--red);color:var(--red);border-radius:7px;padding:1px 11px;font-weight:900;font-size:13.5px;letter-spacing:.06em;transform:rotate(-5deg);animation:stampIn .35s cubic-bezier(.2,1.7,.4,1)}
+@keyframes stampIn{from{transform:rotate(-5deg) scale(2.2);opacity:0}to{transform:rotate(-5deg) scale(1);opacity:.92}}
+
+.quote{font-family:'Gaegu','Noto Sans KR',sans-serif;font-size:21px;line-height:32px;color:#26343A;
+  background:linear-gradient(transparent 31px,#DCE5E4 32px);background-size:100% 32px;padding:0 4px}
+
+/* ---------- 바이탈 모니터 ---------- */
+.monitor{background:var(--mon);border-radius:8px;padding:10px;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;color:#DFF3EE;box-shadow:inset 0 0 0 1px #16292D}
+.mon-bar{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;font:700 11.5px 'Noto Sans KR',sans-serif;color:#7FB5AE;padding:0 2px 2px}
+.mon-status{display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#FFB454;animation:blink 1s infinite}
+.mon-status.ok .dot{background:#46E28C;animation:none}
+@keyframes blink{50%{opacity:.25}}
+.tile{background:var(--mon2);border:1px solid var(--mon-line);border-radius:8px;padding:8px 10px 7px;min-width:0;overflow:hidden}
+.t-hr{grid-column:span 4}.t-bp{grid-column:span 2}.t-temp,.t-rr{grid-column:span 3}
+.t-top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.t-label{font-size:12.5px;font-weight:700;color:#8FC7BF;display:flex;align-items:center;gap:6px}
+.t-chip{font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px;background:#22393E;color:#9FB8B5;white-space:nowrap}
+.t-chip.ok{background:#12351F;color:#46E28C}.t-chip.high{background:#43191F;color:#FF8A8A}.t-chip.low{background:#3B2D12;color:#FFB454}
+.t-body{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px;min-height:34px}
+.t-main{display:flex;align-items:baseline;gap:5px;min-width:0;flex-wrap:wrap}
+.t-num{font:700 30px/1.15 'Space Mono',monospace;letter-spacing:-.03em;white-space:nowrap}
+.t-unit{font-size:11px;color:#7C9A97;white-space:nowrap}
+.t-ref{font-size:11px;color:#6F8A87;margin-top:1px}
+.t-hr .t-num{color:#46E28C}.t-bp .t-num{color:#F1F7F6}.t-temp .t-num{color:#FFC857}.t-rr .t-num{color:#B8E86A}
+.tile.st-high .t-num{color:#FF8A8A}.tile.st-low .t-num{color:#FFB454}
+.tile.alarm{animation:alarm 1.5s ease-in-out infinite}
+@keyframes alarm{0%,100%{border-color:var(--mon-line)}50%{border-color:#FF8A8A;box-shadow:inset 0 0 0 1px rgba(255,138,138,.3)}}
+.wave{height:46px;margin-top:5px;border-radius:4px;background:
+  repeating-linear-gradient(0deg,rgba(80,200,150,.10) 0 1px,transparent 1px 10px),
+  repeating-linear-gradient(90deg,rgba(80,200,150,.10) 0 1px,transparent 1px 10px)}
+.wave canvas{width:100%;height:100%;display:block}
+.heart{animation:beat .8s ease-in-out infinite;transform-origin:center}
+@keyframes beat{0%,60%,100%{transform:scale(1)}15%{transform:scale(1.32)}30%{transform:scale(1)}45%{transform:scale(1.2)}}
+.needle{transition:transform 2.4s cubic-bezier(.3,1.35,.5,1)}
+.lungs{transform-origin:50% 60%;animation:breathe 3.5s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(.86)}50%{transform:scale(1.14)}}
+.lung-wrap{display:flex;flex-direction:column;align-items:center;gap:1px}
+.bw{position:relative;width:34px;height:14px;font-size:11px;font-weight:700;color:#B8E86A;text-align:center}
+.bw span{position:absolute;left:0;right:0;top:0;opacity:0;animation:bwIn 3.5s infinite}
+.bw span+span{animation-name:bwOut}
+@keyframes bwIn{0%,46%{opacity:1}50%,100%{opacity:0}}
+@keyframes bwOut{0%,46%{opacity:0}50%,96%{opacity:1}100%{opacity:0}}
+
+/* ---------- 검사 결과 · 소견 ---------- */
+.labs{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:12px}
+.labs th{background:#F1EFE6;text-align:left;font-size:11.5px;color:var(--ink2);padding:6px 8px;border:1px solid var(--line2)}
+.labs td{padding:7px 8px;border:1px solid var(--line2)}
+.labs small{color:var(--ink3);font-size:11px}
+.b{font-weight:700}
+.flag{font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:99px}
+.flag.ok{background:var(--ok-bg);color:var(--ok)}.flag.high{background:var(--bad-bg);color:var(--bad)}.flag.low{background:var(--warn-bg);color:var(--warn)}
+.note{font-size:14.5px;line-height:1.75;padding:12px 14px;background:#F8F6EC;border-left:4px solid var(--teal);border-radius:0 6px 6px 0}
+.note-label{display:block;font-size:11.5px;font-weight:700;color:var(--teal-d);margin-bottom:4px}
+.note b{background:linear-gradient(transparent 62%,#FBE29A 62%)}
+
+/* ---------- 서술형 문제 ---------- */
+.essay-wrap{margin:16px 18px 0}
+.essay-wrap .sec{margin:0 0 14px}
+.essay-q{padding:14px}
+.essay-q p{font-size:14.5px;line-height:1.7;margin:0 0 10px}
+.etextarea{width:100%;min-height:140px;font:14.5px/1.7 'Noto Sans KR',sans-serif;padding:12px;border:1.5px solid var(--line2);border-radius:7px;background:#FBFAF5;color:var(--ink);resize:vertical;outline-offset:1px}
+.etextarea:focus{border-color:var(--teal);background:#fff}
+.essay-note{font-size:12.5px;color:var(--ink2);padding:10px 18px 0}
+.essay-submit{margin:16px 18px 0;display:flex;justify-content:flex-end}
+.essay-view{background:#fff;border-radius:6px;padding:10px 12px;margin-top:4px;white-space:pre-wrap;font-size:13.5px;line-height:1.7;border:1px solid var(--line2);color:var(--ink)}
+.essay-view:empty::before{content:"(작성하지 않음)";color:var(--ink2)}
+
+/* ---------- 진단 차트 ---------- */
+.lockbox{padding:18px 14px;text-align:center;background:repeating-linear-gradient(45deg,#F6F3E9 0 10px,#F1EEE1 10px 20px);color:var(--ink2);font-size:13.5px}
+.lockbox b{color:var(--ink);font-size:15px;display:block;margin-bottom:8px}
+.ck{list-style:none;padding:0;margin:0 auto;display:inline-block;text-align:left;line-height:1.9}
+.ck li::before{content:"☐  ";font-size:15px}
+.ck li.done{color:var(--ok);font-weight:700}
+.ck li.done::before{content:"☑  "}
+.brow{border-left:5px solid var(--sc);background:#fff;border-radius:0 6px 6px 0;padding:10px 12px 8px;margin-bottom:8px;box-shadow:0 0 0 1px var(--line)}
+.brow-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.qnum{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 5px;border-radius:5px;background:var(--ink);color:#fff;font:700 12px 'Space Mono',monospace}
+.blabel{font-size:14.5px;line-height:1.65;margin-bottom:8px}
+.binput{width:100%;font-size:16px;padding:9px 12px;border-radius:7px;border:1.5px solid var(--line2);background:#FBFAF5;color:var(--ink);outline-offset:1px}
+.binput:focus{border-color:var(--teal);background:#fff}
+.binput.correct{border-color:var(--ok);background:var(--ok-bg);color:var(--ok);font-weight:700}
+.binput.wrong{border-color:var(--bad);background:var(--bad-bg);color:var(--bad);font-weight:700}
+.binput.failed{border-color:var(--ink3);background:#ECEAE2;color:var(--ink2);font-weight:700;text-decoration:line-through;text-decoration-color:var(--ink3)}
+.binput:disabled{opacity:1}
+.bfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:5px;min-height:20px}
+.fb{font-size:12.5px;color:var(--bad);display:none}.fb.show{display:block}.fb.empty{color:var(--warn)}.fb.failed{color:var(--ink2)}
+.wc{display:none;font:700 11px 'Space Mono',monospace;padding:2px 8px;border-radius:99px;background:var(--bad-bg);color:var(--bad);white-space:nowrap}.wc.show{display:inline-block}
+.answer-key{font-size:11.5px;color:var(--ink3);margin-top:3px}
+.chart-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 0 0}
+.attempt{font-size:12.5px;color:var(--ink2);min-height:18px}
+
+.btn{border:none;border-radius:9px;padding:11px 22px;font-size:15px;font-weight:700;cursor:pointer;color:#fff;background:var(--teal);transition:transform .08s,filter .15s;flex:none}
+.btn:hover{filter:brightness(1.07)}.btn:active{transform:scale(.97)}
+.btn.small{padding:8px 16px;font-size:13.5px}
+.btn.next{background:var(--ink)}
+.btn.ghost{background:transparent;color:var(--teal-d);border:1.5px solid var(--teal)}
+.btn.big{width:100%;padding:14px;font-size:16px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---------- 접수(시작) 화면 ---------- */
+.setup{padding:22px 22px 6px}
+.setup h2{margin:0 0 6px;font-size:21px;letter-spacing:-.01em}
+.setup .lead{margin:0 0 16px;font-size:14px;line-height:1.7;color:var(--ink2);max-width:560px}
+.how{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 20px;padding:0;list-style:none;counter-reset:h}
+.how li{counter-increment:h;border:1.5px solid var(--line2);border-radius:6px;padding:8px 10px;font-size:12.5px;line-height:1.5;background:#fff}
+.how li::before{content:counter(h);display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--teal);color:#fff;font-size:11px;font-weight:700;margin-right:6px}
+.slabel{display:block;font-size:12.5px;font-weight:700;color:var(--ink2);margin-bottom:5px}
+.sinput{width:100%;font-size:16px;padding:10px 12px;border-radius:7px;border:1.5px solid var(--line2);background:#FBFAF5;margin-bottom:14px}
+.sinput:focus{border-color:var(--teal);background:#fff}
+.sinput.invalid{border-color:var(--bad);background:var(--bad-bg)}
+.doc-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.doc-grid .slabel{display:flex;align-items:center;gap:6px}
+.doc-grid .slabel i{width:10px;height:10px;border-radius:2px;background:var(--sc)}
+.serr{background:var(--bad-bg);color:var(--bad);font-size:13px;padding:9px 12px;border-radius:7px;margin-bottom:12px}
+
+/* ---------- 결과 화면 ---------- */
+.result{padding:20px 20px 4px}
+.result h2{margin:0 0 4px;font-size:21px}
+.result .lead{margin:0 0 16px;font-size:13.5px;color:var(--ink2);line-height:1.6}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.stat{flex:1 1 150px;border:1.5px solid var(--ink);border-radius:6px;padding:10px 14px;background:#fff}
+.stat .n{font:700 30px/1.1 'Space Mono',monospace;color:var(--teal-d)}
+.stat.bad .n{color:var(--bad)}
+.stat .l{font-size:12.5px;color:var(--ink2);margin-top:2px}
+.h3{font-size:13px;font-weight:900;margin:18px 0 8px;display:flex;justify-content:space-between;align-items:baseline}
+.h3 small{font-weight:400;color:var(--ink3);font-size:11.5px}
+.docstats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ds{border-top:5px solid var(--sc);background:var(--sb);border-radius:0 0 6px 6px;padding:8px 10px}
+.ds .d{font-size:11.5px;font-weight:700;color:var(--sc)}
+.ds .nm{font-size:15px;font-weight:900;margin:1px 0 2px;word-break:keep-all}
+.ds .c{font-size:12px;color:var(--ink2)}
+.heat-wrap{overflow-x:auto;border:1.5px solid var(--ink);border-radius:5px;background:#fff}
+.heat{border-collapse:collapse;width:100%;min-width:560px;font-size:13px}
+.heat th{background:#ECF2F1;font-size:11.5px;padding:6px 6px;border-bottom:1.5px solid var(--ink);white-space:nowrap}
+.heat td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}
+.heat td.nm{text-align:left;font-weight:700;white-space:nowrap}
+.heat td.nm small{display:block;font-weight:400;color:var(--ink3);font-size:11px}
+.heat td.hc{border-top:3px solid var(--sc);font:700 13px 'Space Mono',monospace;min-width:30px}
+.heat td.z{background:var(--ok-bg);color:var(--ok)}.heat td.w1{background:#FBDDE1;color:#B5364A}.heat td.w2{background:#F3A7B2;color:#8E1F33}.heat td.w3{background:#D24B62;color:#fff}
+.heat td.tot{font:700 13px 'Space Mono',monospace}
+.legend{font-size:11.5px;color:var(--ink2);margin-top:6px;line-height:1.7}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 3px 0 8px;vertical-align:-1px}
+.toplist .row{display:flex;justify-content:space-between;gap:10px;background:#F8F6EC;border-radius:6px;padding:8px 12px;margin-bottom:5px;font-size:13px;line-height:1.5}
+.toplist .row b{margin-right:6px}
+.toplist .row .w{font:700 13px 'Space Mono',monospace;color:var(--bad);white-space:nowrap}
+.result-actions{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 6px}
+.result-actions .btn{flex:1 1 200px}
+.reportbox{margin-top:8px;font-size:13px}
+.reportbox summary{cursor:pointer;color:var(--ink2);padding:6px 0}
+.reportbox textarea{width:100%;height:150px;font:11.5px/1.6 'Space Mono',monospace;padding:10px;border:1px solid var(--line2);border-radius:6px;background:#FBFAF5;margin-top:6px}
+
+/* ---------- 이미지 미리보기 창 ---------- */
+.modal{position:fixed;inset:0;background:rgba(15,28,27,.72);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 12px 16px;overflow:auto}
+.modal-box{background:#fff;border-radius:12px;max-width:760px;width:100%;padding:14px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;font-weight:900;margin-bottom:10px}
+.modal-box img{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;display:block}
+.modal-note{font-size:12.5px;color:var(--ink2);line-height:1.6;margin:10px 0}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap}
+.modal-actions .btn{text-decoration:none;text-align:center;flex:1 1 180px}
+
+@media (max-width:640px){
+  .info-grid{grid-template-columns:repeat(2,1fr)}.ic.w2,.ic.w4{grid-column:span 2}
+  .monitor{grid-template-columns:repeat(2,1fr)}
+  .t-hr,.t-bp,.t-rr{grid-column:span 2}.t-temp{grid-column:span 1}
+  .how{grid-template-columns:1fr 1fr}
+  .doc-grid{grid-template-columns:1fr}
+  .docstats{grid-template-columns:1fr 1fr}
+  .chart-actions{flex-direction:column;align-items:stretch}
+  .btn{width:100%}
+  .head-right .barcode{display:none}
+  .sec,.info-grid{margin-left:10px;margin-right:10px}
+  .quote{font-size:19px}
+}
+@media (prefers-reduced-motion:reduce){
+  .heart,.lungs,.bw span,.dot,.tile.alarm,.sec.reveal,.stamp{animation:none!important}
+  .bw span:first-child{opacity:1}
+  .needle{transition:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="queue hidden" id="queue" aria-label="대기 환자 번호표"></div>
+
+  <div class="clipboard">
+    <div class="clip"></div>
+    <div class="paper">
+
+      <header class="chart-head">
+        <div class="brand">
+          <div class="cross">✚</div>
+          <div>
+            <div class="brand-name" id="hName"></div>
+            <div class="brand-sub" id="hSub"></div>
+          </div>
+        </div>
+        <div class="head-right">
+          <div class="barcode"></div>
+          <div class="mono" id="hMeta"></div>
+        </div>
+      </header>
+
+      <main>
+        <!-- 1) 접수: 팀 등록 -->
+        <section id="screenSetup" class="setup">
+          <h2>오늘의 진료팀을 등록해 주세요</h2>
+          <p class="lead">우리 조는 네 개 과의 전문의가 함께 환자를 진료하는 협진 팀입니다. 문항 왼쪽의 색 띠는 어느 기관계 문제인지를 나타냅니다. 서로 의논하며 진단 차트를 완성하세요. 뒤로 갈수록 환자의 상태가 까다로워집니다.</p>
+          <ol class="how">
+            <li>환자의 <b>주 호소 증상</b>을 읽는다</li>
+            <li><b>바이탈</b>이 측정되는 것을 본다</li>
+            <li><b>검사 결과와 설명</b>을 확인한다</li>
+            <li><b>진단 차트</b>의 빈칸을 채운다</li>
+          </ol>
+          <label class="slabel" for="teamName">조 이름</label>
+          <input type="text" id="teamName" class="sinput" placeholder="예: 1조" autocomplete="off">
+          <div class="doc-grid" id="docGrid"></div>
+          <div class="serr hidden" id="setupError">조 이름과 담당의 네 명의 이름을 모두 입력해 주세요.</div>
+          <button class="btn big" id="startBtn">진료 시작하기</button>
+        </section>
+
+        <!-- 2) 진료 중: 환자 차트가 여기에 그려집니다 -->
+        <section id="screenChart" class="hidden"></section>
+
+        <!-- 2.5) 서술형 문제: 환자 10명을 모두 마친 뒤, 결과 화면 직전 -->
+        <section id="screenEssay" class="hidden"></section>
+
+        <!-- 3) 결과 -->
+        <section id="screenResult" class="result hidden"></section>
+      </main>
+
+    </div>
+  </div>
+</div>
+
+<!-- 결과 이미지 미리보기 -->
+<div class="modal hidden" id="imgModal" role="dialog" aria-modal="true" aria-label="결과 이미지">
+  <div class="modal-box">
+    <div class="modal-head"><span>결과 이미지</span><button class="btn small ghost" id="mClose">닫기</button></div>
+    <img id="mImg" alt="진단클리닉 결과 이미지">
+    <p class="modal-note">이미지가 자동으로 저장되지 않으면 아래 <b>이미지 저장</b> 버튼을 누르거나, 이미지를 길게 눌러(컴퓨터는 오른쪽 클릭) 저장하세요. 저장한 이미지를 선생님께 제출하면 됩니다.</p>
+    <div class="modal-actions">
+      <a class="btn" id="mDl" href="#" download="result.png">이미지 저장</a>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================================
+     ★ 데이터 영역 (선생님이 수정하는 곳) ★
+     ---------------------------------------------------------------------
+     환자 한 명의 형식:
+     {
+       name: "환자 이름", age: 나이, gender: "남" 또는 "여",
+       level: 1(기본) / 2(응용) / 3(심화),
+       diagnosis: "진단명",
+       quote: "주 호소 증상 (환자가 한 말)",
+       vitals: { bp:[수축기, 이완기], hr:맥박수, temp:체온, rr:호흡수 },
+                → 정상/높음/낮음 판정은 나이에 따라 자동 계산됩니다.
+       labs: [ { name:"항목", value:"결과", unit:"단위", ref:"정상범위", flag:"높음|낮음|정상" } ],
+                → 검사 결과표. 필요 없으면 labs: [] 로 두세요.
+       findings: "담당의 설명. <b>굵게</b> 표시할 부분은 <b>와 </b> 로 감싸기",
+       blanks: [
+         { s:"소화|순환|호흡|배설",   ← 어느 기관계 문항인지 (담당의 표시와 통계에 사용)
+           label:"문제 문장",
+           answers:["정답","인정할 다른 표현"],   ← 띄어쓰기·마침표는 무시하고 비교
+           ph:"입력칸 안내 글",
+           loose:true }                          ← (선택) true면 "위로 올라간다"처럼
+                                                    정답 표현이 포함된 문장도 정답 처리
+       ]
+     }
+     ※ 응용(2)·심화(3) 단계는 기관계별 문항 수가 같도록 구성되어 있습니다.
+       문항을 추가·삭제한 뒤 F12 콘솔의 '기관계별 문항 수' 표로 균형을 확인하세요.
+     ===================================================================== -->
+<script id="patient-data">
+const CONFIG = {
+  hospitalName: "아중종합병원",
+  clinicName: "동물과 에너지 진단클리닉",
+  chartTitle: "내과 협진 진료 기록지",
+  levelNames: { 1: "LV.1 기본", 2: "LV.2 응용", 3: "LV.3 심화" },
+  depts: { "소화": "소화기내과", "순환": "순환기내과", "호흡": "호흡기내과", "배설": "신장내과" },
+  /* 서술형 문제 (1~2개 권장) — 질문 내용을 자유롭게 바꾸세요.
+     여기서 자동 채점은 하지 않고, 학생이 쓴 내용이 결과 화면과 저장 이미지에 그대로 들어갑니다. 선생님이 직접 채점하세요. */
+  essayQuestions: [
+    "태웅은 심장 근처가 바늘로 쿡쿡 찌르는 듯한 느낌이 들어 불안한 마음에 흉부외과를 찾아갔습니다. 검사 결과, 심장에는 아무 이상이 없었고 의사는 '소화기내과를 가보는 게 좋겠다'고 말했습니다. 소화기내과를 찾아간 태웅은 '역류성식도염'을 진단 받았습니다. 역류성식도염을 가진 태웅이 왜 심장을 찌르는 듯한 통증을 느꼈는지 식도의 위치, 위액의 특징을 포함하여 자세히 서술하시오.",
+    "만약 태웅의 심장에 실제로 문제가 있었다면, 이는 '협심증'이라 부르는 질환입니다. 협심증은 심장의 동맥이 좁아지며 심장 근육에 필요한 산소 공급이 줄어들며 발생하는 질환입니다. 이 때, 무거운 물건을 들거나 운동을 하면 통증이 더 심해지는데, 이를 심장 세포의 세포호흡과 관련지어 자세히 서술하시오."
+  ]
+};
+
+const PATIENTS = [
+
+  /* ═════════ LV.1 기본 (1~3번) ═════════ */
+  {
+    name: "박정훈", age: 41, gender: "남", level: 1, diagnosis: "급성 위염",
+    quote: "회식이 잦은 영업직이에요. 어젯밤 삼겹살에 소주를 마신 뒤부터 명치 부근이 쿡쿡 쑤시고, 오늘 아침엔 속이 쓰려서 밥을 못 먹었습니다.",
+    vitals: { bp: [126, 80], hr: 78, temp: 36.7, rr: 16 },
+    labs: [],
+    findings: "내시경으로 살펴보니 <b>속이 쓰린 부위의 안쪽 벽이 빨갛게 부어 있고 표면이 얕게 헐어 있는 것</b>이 보임. 세균 감염은 없음. 음주와 자극적인 음식이 원인으로 보여 통증을 가라앉히는 약을 처방하고 식사 방법을 지도함.",
+    blanks: [
+      { s: "소화", label: "명치 부근이 아프고 속이 쓰립니다. 통증이 생긴 소화 기관은?", answers: ["위", "위장"], ph: "기관 이름" },
+      { s: "소화", label: "이 기관에서 분비되는 소화액은?", answers: ["위액"], ph: "소화액 이름" },
+      { s: "소화", label: "이 소화액 속에서 단백질을 분해하는 소화 효소는?", answers: ["펩신"], ph: "효소 이름" },
+      { s: "소화", label: "단백질이 소화되어 최종적으로 분해되면 무엇이 되나요?", answers: ["아미노산"], ph: "최종 분해 산물" }
+    ]
+  },
+  {
+    name: "신자영", age: 72, gender: "여", level: 1, diagnosis: "급성 기관지염",
+    quote: "일주일째 기침이 안 떨어져요. 가래도 끓고, 기침을 하다 보면 숨이 차서 계단을 오르내리기도 힘드네요.",
+    vitals: { bp: [132, 80], hr: 88, temp: 37.6, rr: 22 },
+    labs: [],
+    findings: "청진기로 들어 보니 숨을 쉴 때 가래 끓는 소리가 들림. <b>기관지에 염증이 생겨</b> 기침과 가래가 나는 것으로 진단됨.",
+    blanks: [
+      { s: "호흡", label: "숨을 들이쉴 때(들숨), 가로막의 움직임은?", answers: ["내려간다", "내려감", "내려가고", "내려가다", "하강", "아래로내려간다", "아래로내려감"], ph: "올라간다 / 내려간다", loose: true },
+      { s: "호흡", label: "같은 순간, 갈비뼈의 움직임은?", answers: ["올라간다", "올라감", "올라가고", "올라가다", "상승", "위로올라간다", "위로올라감"], ph: "올라간다 / 내려간다", loose: true },
+      { s: "호흡", label: "이때 흉강(가슴 속 공간)의 부피 변화는?", answers: ["커진다", "커짐", "커지고", "커져", "커집니다", "증가한다", "증가", "늘어난다", "늘어남", "넓어진다"], ph: "커진다 / 작아진다", loose: true },
+      { s: "호흡", label: "이때 흉강 내부의 압력 변화는?", answers: ["낮아진다", "낮아짐", "낮아지고", "낮아져", "낮아집니다", "감소한다", "감소", "줄어든다", "줄어듦"], ph: "높아진다 / 낮아진다", loose: true }
+    ]
+  },
+  {
+    name: "이경준", age: 55, gender: "남", level: 1, diagnosis: "고혈압",
+    quote: "혈압약은 5년째 꾸준히 먹고 있는데, 요즘 스트레스를 받고, 야근이 많아지면서 집에서 잰 혈압이 다시 올라갔어요.",
+    vitals: { bp: [158, 96], hr: 84, temp: 36.5, rr: 16 },
+    labs: [],
+    findings: "정기 검진에서 혈압이 다시 높아져 <b>식이요법과 약의 양을 조절</b>하기로 함.",
+    blanks: [
+      { s: "순환", label: "심장의 좌심실에서 나온 혈액이 처음 지나는, 우리 몸에서 가장 굵은 혈관은?", answers: ["대동맥"], ph: "혈관 이름" },
+      { s: "순환", label: "혈관 중 현미경으로 봐야 관찰될 정도로 아주 미세한 혈관은?", answers: ["모세혈관"], ph: "혈관 이름" },
+      { s: "순환", label: "심장에서 나가는 혈액이 흐르는 혈관을 통틀어 무엇이라고 부르나요?", answers: ["동맥"], ph: "혈관의 종류" }
+    ]
+  },
+
+  /* ═════════ LV.2 응용 (4~7번) ─ 환자마다 [주 담당 과 3문항 + 다른 세 과 1문항씩] ═════════ */
+  {
+    name: "채지연", age: 52, gender: "여", level: 2, diagnosis: "당뇨병 (의심)",
+    quote: "소변에 거품이 많고, 요즘 유독 목이 말라요. 물을 계속 마시는데도 갈증이 나고 밤에도 화장실을 두세 번 갑니다. 밥 먹고 나면 졸리기도 하고요.",
+    vitals: { bp: [134, 84], hr: 82, temp: 36.6, rr: 16 },
+    labs: [
+      { name: "공복혈당", value: "186", unit: "mg/dL", ref: "70~99", flag: "높음" },
+      { name: "오줌 속 포도당", value: "검출", unit: "", ref: "미검출", flag: "높음" }
+    ],
+    findings: "최근 건강검진 소변 검사에서 <b>오줌에 포도당이 섞여 나오는 것</b>이 확인되어 내원함. 혈당이 높아 당뇨병이 의심됨.",
+    blanks: [
+      { s: "소화", label: "밥의 주성분인 녹말은 입에서 침 속의 소화 효소에 의해 처음 분해됩니다. 이 효소는?", answers: ["아밀레이스", "아밀라아제", "아밀레이즈", "아밀라제", "아밀라이제"], ph: "효소 이름" },
+      { s: "순환", label: "소장에서 흡수된 영양소는 혈액에 실려 온몸으로 운반됩니다. 혈액의 액체 성분으로, 영양소와 노폐물을 실어 나르는 것은?", answers: ["혈장"], ph: "혈액 성분" },
+      { s: "호흡", label: "세포가 포도당을 분해해 에너지를 얻으려면 폐를 통해 들어온 어떤 기체가 필요할까요?", answers: ["산소", "o2"], ph: "기체 이름" },
+      { s: "배설", label: "혈액을 걸러 주는, 실뭉치 모양의 모세혈관 덩어리는? (동의어 인정)", answers: ["사구체", "토리"], ph: "구조 이름" },
+      { s: "배설", label: "혈액 속의 물, 포도당, 요소 같은 작은 물질이 4번 문항의 구조에서 보먼주머니로 걸러져 나오는 과정은?", answers: ["여과"], ph: "과정 이름" },
+      { s: "배설", label: "건강한 사람은 혈액에서 걸러져 나온 포도당이 세뇨관에서 모세혈관으로 다시 되돌아가 오줌에 섞이지 않습니다. 이 환자는 혈당이 너무 높아 이 과정이 다 처리하지 못했습니다. 이 과정은?", answers: ["재흡수"], ph: "과정 이름" }
+    ]
+  },
+  {
+    name: "한로운", age: 6, gender: "남", level: 2, diagnosis: "폐렴",
+    quote: "(보호자) 이틀 전부터 열이 39도 가까이 오르고 기침을 심하게 해요. 숨을 쉴 때 배가 들썩거리고, 밥도 잘 못 먹어서 죽만 조금 먹었어요.",
+    vitals: { bp: [98, 60], hr: 128, temp: 38.4, rr: 34 },
+    labs: [],
+    findings: "청진기로 들어 보니 폐에서 숨소리가 거칠게 들림. 폐렴으로 진단하여 입원시키고 산소를 공급하며 항생제 치료를 시작함. 폐 속 곳곳에 염증이 생겨 <b>기체 교환이 잘 이루어지지 않는 상태</b>임.",
+    blanks: [
+      { s: "소화", label: "열이 나서 입맛이 없는 로운이는 죽을 조금 먹었습니다. 죽의 주성분인 녹말이 소화되어 최종적으로 무엇이 되어 흡수되나요?", answers: ["포도당"], ph: "최종 분해 산물" },
+      { s: "순환", label: "폐에서 기체 교환을 마친 혈액이 심장으로 돌아올 때 지나는 혈관은?", answers: ["폐정맥", "허파정맥"], ph: "혈관 이름" },
+      { s: "호흡", label: "폐를 이루는 수많은 작은 공기주머니로, 기체 교환이 일어나는 곳은?", answers: ["폐포", "허파꽈리"], ph: "구조 이름" },
+      { s: "호흡", label: "폐렴으로 염증이 생기면 3번 문항의 구조에서 모세혈관으로 어떤 기체가 잘 넘어가지 못해 혈액 속 이 기체의 양이 줄어듭니다. 3번 구조에서 모세혈관으로 이동하는 기체는?", answers: ["산소", "o2"], ph: "기체 이름" },
+      { s: "호흡", label: "기체가 농도가 높은 쪽에서 낮은 쪽으로 저절로 이동하는 원리를 무엇이라고 하나요?", answers: ["확산"], ph: "원리 이름" },
+      { s: "배설", label: "항생제 같은 약물과 노폐물을 혈액에서 걸러 오줌으로 내보내는 배설 기관은?", answers: ["콩팥", "신장"], ph: "기관 이름" }
+    ]
+  },
+
+  /* ═════════ LV.3 심화 (8~10번) ─ 환자마다 네 기관계 문항이 2개씩 ═════════ */
+  {
+    name: "진세아", age: 16, gender: "여", level: 3, diagnosis: "빈혈 (철분 부족)",
+    quote: "육상부인데 요즘 400m만 뛰어도 눈앞이 캄캄하고 숨이 턱까지 차요. 다이어트하느라 두 달째 고기를 거의 안 먹었어요.",
+    vitals: { bp: [106, 66], hr: 108, temp: 36.5, rr: 24 },
+    labs: [
+      { name: "피 속 붉은 색소의 양", value: "9.1", unit: "g/dL", ref: "12.0~16.0", flag: "낮음" },
+      { name: "혈액 속 철분", value: "28", unit: "µg/dL", ref: "50~170", flag: "낮음" }
+    ],
+    findings: "혈액 검사 결과 <b>피 속 붉은 색소의 양이 정상보다 적어</b> 빈혈로 진단됨. 철분이 많은 음식을 먹도록 지도하고 철분제를 처방함. 영양소와 산소가 세포까지 전달되고 노폐물이 몸 밖으로 나가는 전 과정을 함께 정리함.",
+    blanks: [
+      { s: "소화", label: "소장 안쪽 벽의 수많은 주름과 융털은 영양소와 닿는 ○○○을 넓혀 흡수 효율을 높입니다. ○○○은?", answers: ["표면적", "겉넓이", "면적"], ph: "용어" },
+      { s: "소화", label: "이자액에 들어 있는 단백질 분해 효소는?", answers: ["트립신"], ph: "효소 이름" },
+      { s: "순환", label: "혈액의 세포 성분 중 산소를 운반하는 것은?", answers: ["적혈구"], ph: "혈구 이름" },
+      { s: "순환", label: "혈액 속 붉은 색소로, 산소와 결합해 산소를 운반하는 단백질은?", answers: ["헤모글로빈", "혈색소"], ph: "물질 이름" },
+      { s: "호흡", label: "폐에서 혈액으로 들어온 산소를 이용해 세포가 영양소를 분해하고 에너지를 얻는 과정을 무엇이라고 하나요?", answers: ["세포호흡", "조직호흡"], ph: "과정 이름" },
+      { s: "호흡", label: "산소가 부족한 몸은 산소를 더 얻으려고 호흡수(1분 동안 숨 쉬는 횟수)가 어떻게 변할까요?", answers: ["빨라진다", "빨라짐", "빨라져", "빨라집니다", "증가한다", "증가", "많아진다", "많아짐", "늘어난다", "늘어남", "높아진다", "높아짐", "커진다"], ph: "빨라진다 / 느려진다", loose: true },
+      { s: "배설", label: "단백질은 분해되어 암모니아가 생기는데, 이 암모니아는 독성을 가지고 있어 간에서 다른 물질로 전환됩니다. 어떤 물질로 변하나요?", answers: ["요소"], ph: "물질 이름" },
+      { s: "배설", label: "영양소가 산소와 반응해 에너지를 낼 때 이산화탄소와 함께 만들어지며, 오줌이나 땀으로 나가는 물질은?", answers: ["물", "수분", "h2o"], ph: "물질 이름" }
+    ]
+  },
+  {
+    name: "서지훈", age: 28, gender: "남", level: 3, diagnosis: "이상 없음 (종합건강검진)",
+    quote: "특별히 아픈 곳은 없는데, 회사에서 단체 검진을 받으라고 해서 왔습니다.",
+    vitals: { bp: [118, 74], hr: 70, temp: 36.6, rr: 15 },
+    labs: [
+      { name: "공복혈당", value: "92", unit: "mg/dL", ref: "70~99", flag: "정상" },
+      { name: "피 속 붉은 색소의 양", value: "15.1", unit: "g/dL", ref: "13.0~17.0", flag: "정상" },
+      { name: "혈액 속 요소 수치", value: "14", unit: "mg/dL", ref: "8~20", flag: "정상" }
+    ],
+    findings: "모든 검사 결과가 <b>정상 범위</b>입니다. 올바른 생활 습관 점검을 통해 건강 상태가 유지될 수 있도록 함.",
+    blanks: [
+      { s: "소화", label: "탄수화물, 단백질, 지방을 모두 소화하는 효소가 들어 있는 소화액을 분비하는 기관은?", answers: ["이자", "췌장"], ph: "기관 이름" },
+      { s: "소화", label: "소화되고 남은 찌꺼기(대변)를 항문으로 내보내는 것은 배설일까요? (예 / 아니오)", answers: ["아니오", "아니요", "아니", "아니다", "아님", "아닙니다", "아니에요", "배설이아니다", "배설이아님", "배설아님", "배설이아닙니다"], ph: "예 / 아니오" },
+      { s: "순환", label: "혈액이 좌심실 → 대동맥 → 조직세포 주변의 모세혈관 → 대정맥 → 우심방으로 돌아오는 순환 경로의 이름은?", answers: ["온몸순환", "전신순환", "체순환"], ph: "순환 이름" },
+      { s: "순환", label: "혈액이 우심실 → 폐동맥 → 폐포 주변의 모세혈관 → 폐정맥 → 좌심방으로 돌아오는 순환 경로의 이름은?", answers: ["폐순환", "허파순환"], ph: "순환 이름" },
+      { s: "호흡", label: "폐포에서 모세혈관으로 산소가 이동합니다. 반대로 모세혈관에서 폐포로 이동하는 기체는?", answers: ["이산화탄소", "co2"], ph: "기체 이름" },
+      { s: "호흡", label: "들숨과 날숨 중 산소의 농도가 더 낮은 것은?", answers: ["날숨", "내쉰숨", "내쉰공기", "날숨공기"], ph: "들숨 / 날숨" },
+      { s: "배설", label: "사구체(토리)에서 걸러진 액체를 받아내는 주머니 모양의 구조는?", answers: ["보먼주머니", "보면주머니", "보우먼주머니", "토리주머니", "보먼낭", "보우먼낭", "보먼캡슐"], ph: "구조 이름" },
+      { s: "배설", label: "만약 소변에서 단백질이 검출된다면 소변 생성 과정 중 어느 단계에 이상이 있는가?", answers: ["여과"], ph: "과정 이름" }
+    ]
+  }
+
+];
+</script>
+<!-- =====================================================================
+     프로그램 영역 (특별한 수정이 필요 없으면 건드리지 않아도 됩니다)
+     ===================================================================== -->
+<script id="app-logic">
+(function(){
+'use strict';
+
+/* ---------- 공통 도구 ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SYS = ['소화','순환','호흡','배설'];
+const SCLS = { '소화':'s-dig', '순환':'s-cir', '호흡':'s-res', '배설':'s-exc' };
+const SCOL = { '소화':'#C96A34', '순환':'#B3404F', '호흡':'#3E7CA6', '배설':'#6C5B9E' };
+const SBG  = { '소화':'#FBEEE3', '순환':'#FAE7E9', '호흡':'#E7F0F7', '배설':'#ECE8F6' };
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches;
+const KEYMODE = new URLSearchParams(location.search).get('key') === '1';
+
+/* ---------- 상태 ---------- */
+const S = { team: '', docs: {}, idx: 0, p: [], essay: [] };
+function freshState(){
+  S.idx = 0;
+  S.p = PATIENTS.map(p => ({ stage: 0, done: false, attempts: 0, blanks: p.blanks.map(() => ({ wrong: 0, done: false })) }));
+  S.essay = (CONFIG.essayQuestions || []).map(() => '');
+}
+
+/* ---------- 채점 ---------- */
+const norm = s => String(s).toLowerCase().replace(/[\s.,·・!?()~\-_'"“”‘’…:;]/g, '');
+function isCorrect(b, raw){
+  const v = norm(raw);
+  if (!v) return false;
+  const list = b.answers.map(norm);
+  if (list.includes(v)) return true;
+  if (b.loose) return list.some(a => a.length >= 2 && v.includes(a));
+  return false;
+}
+
+/* ---------- 바이탈 정상범위 판정 (나이 기준 자동) ---------- */
+function judge(p){
+  const v = p.vitals, a = p.age, child = a < 12;
+  const R = {
+    hr:   child ? [70,110] : [60,100],
+    sys:  child ? [90,120] : [90,139],
+    dia:  child ? [55,80]  : [60,89],
+    temp: [36.0,37.4],
+    
+    rr:   child ? [18,30]  : [12,20]
+  };
+  const f = (x, r) => x > r[1] ? 'high' : x < r[0] ? 'low' : 'ok';
+  const bp = (v.bp[0] > R.sys[1] || v.bp[1] > R.dia[1]) ? 'high' : (v.bp[0] < R.sys[0] || v.bp[1] < R.dia[0]) ? 'low' : 'ok';
+  return {
+    hr: f(v.hr, R.hr), bp, temp: f(v.temp, R.temp), rr: f(v.rr, R.rr),
+    ref: {
+      hr: R.hr[0] + '~' + R.hr[1], bp: R.sys[0] + '~' + R.sys[1] + ' / ' + R.dia[0] + '~' + R.dia[1],
+      temp: R.temp[0].toFixed(1) + '~' + R.temp[1].toFixed(1), rr: R.rr[0] + '~' + R.rr[1]
+    }
+  };
+}
+const FLAGTXT = { ok:'정상', high:'높음', low:'낮음' };
+
+/* ---------- 파형 (심전도 · 맥박) ---------- */
+let waves = [], raf = 0;
+const gauss = (x, c, w, a) => a * Math.exp(-Math.pow((x - c) / w, 2));
+const ecgFn = p => gauss(p,.16,.035,.12) + gauss(p,.30,.008,-.12) + gauss(p,.33,.011,1) + gauss(p,.36,.009,-.22) + gauss(p,.58,.05,.22);
+function addWave(cv, fn, hz, color, amp){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = cv.clientWidth || 200, h = cv.clientHeight || 46;
+  cv.width = w * dpr; cv.height = h * dpr;
+  waves.push({ cv, fn, hz, color, amp, w, h, dpr });
+}
+function tick(){
+  const t = performance.now() / 1000;
+  waves.forEach(o => {
+    const c = o.cv.getContext('2d');
+    c.setTransform(o.dpr,0,0,o.dpr,0,0);
+    c.clearRect(0,0,o.w,o.h);
+    c.strokeStyle = o.color; c.lineWidth = 1.8; c.lineJoin = 'round'; c.shadowColor = o.color; c.shadowBlur = 5;
+    c.beginPath();
+    const base = o.h * .78, A = o.h * .62 * o.amp;
+    for (let x = 0; x <= o.w; x += 2){
+      const ph = ((x / o.w) * 3 + t) * o.hz;
+      const y = base - o.fn(ph - Math.floor(ph)) * A;
+      x === 0 ? c.moveTo(x, y) : c.lineTo(x, y);
+    }
+    c.stroke();
+  });
+  raf = requestAnimationFrame(tick);
+}
+function startWaves(){ if (!raf && waves.length) raf = requestAnimationFrame(tick); }
+function stopWaves(){ cancelAnimationFrame(raf); raf = 0; waves = []; }
+
+/* ---------- 숫자 올라가는 효과 ---------- */
+function countUp(el, to, dec, ms, done){
+  if (reduceMotion){ el.textContent = to.toFixed(dec); done && done(); return; }
+  const t0 = performance.now();
+  (function f(now){
+    const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = (to * e).toFixed(dec);
+    if (k < 1) requestAnimationFrame(f); else { el.textContent = to.toFixed(dec); done && done(); }
+  })(t0);
+}
+
+/* ---------- 접수 화면 ---------- */
+function buildSetup(){
+  $('#hName').textContent = CONFIG.hospitalName;
+  $('#hSub').textContent = CONFIG.clinicName + ' · ' + CONFIG.chartTitle;
+  $('#hMeta').textContent = 'NO. ' + new Date().toISOString().slice(0,10).replace(/-/g,'');
+  document.title = CONFIG.clinicName;
+  $('#docGrid').innerHTML = SYS.map((s, i) =>
+    '<div class="' + SCLS[s] + '"><label class="slabel" for="doc' + i + '"><i></i>' + esc(CONFIG.depts[s]) + ' 담당의</label>' +
+    '<input type="text" class="sinput" id="doc' + i + '" placeholder="이름" autocomplete="off"></div>').join('');
+  $('#docGrid').addEventListener('keydown', e => { if (e.key === 'Enter') startClinic(); });
+  $('#teamName').addEventListener('keydown', e => { if (e.key === 'Enter') startClinic(); });
+  $('#startBtn').addEventListener('click', startClinic);
+}
+function startClinic(){
+  const ti = $('#teamName'), ins = SYS.map((s, i) => $('#doc' + i));
+  let ok = true;
+  [ti].concat(ins).forEach(x => { const bad = !x.value.trim(); x.classList.toggle('invalid', bad); if (bad) ok = false; });
+  $('#setupError').classList.toggle('hidden', ok);
+  if (!ok) return;
+  S.team = ti.value.trim();
+  SYS.forEach((s, i) => S.docs[s] = ins[i].value.trim());
+  $('#hMeta').textContent = S.team + ' · ' + new Date().toLocaleDateString('ko-KR');
+  freshState();
+  $('#screenSetup').classList.add('hidden');
+  $('#queue').classList.remove('hidden');
+  $('#screenChart').classList.remove('hidden');
+  renderPatient(0);
+}
+
+/* ---------- 대기 번호표 ---------- */
+function renderQueue(){
+  $('#queue').innerHTML = PATIENTS.map((p, i) => {
+    const gap = (i < PATIENTS.length - 1 && PATIENTS[i + 1].level !== p.level) ? ' gap' : '';
+    const st = i < S.idx ? ' done' : i === S.idx ? ' cur' : '';
+    return '<div class="qt' + st + gap + '" title="' + esc(p.name) + '">' + (i + 1) + '</div>';
+  }).join('');
+}
+
+/* ---------- 환자 차트 ---------- */
+function secHTML(no, title, sub, body, extra){
+  return '<section class="sec' + (extra && extra.hide ? ' hidden' : '') + '" id="sec' + no + '">' +
+    '<div class="sec-head"><span><span class="sec-no">' + no + '</span>' + title + '</span><span class="sec-sub">' + sub + '</span></div>' +
+    '<div class="sec-body" id="body' + no + '">' + body + '</div>' +
+    (no < 4 ? '<div class="confirm-bar" id="cb' + no + '"><span class="cb-hint" id="hint' + no + '"></span>' +
+      '<button class="btn small" id="cbtn' + no + '" data-confirm="' + no + '">확인했어요</button></div>' : '') +
+    '</section>';
+}
+function monitorHTML(p, j){
+  const v = p.vitals;
+  const tile = (cls, key, label, icon, numHTML, unit, extra) =>
+    '<div class="tile ' + cls + (j[key] !== 'ok' ? ' st-' + j[key] + ' alarm' : '') + '">' +
+      '<div class="t-top"><span class="t-label">' + icon + label + '</span><span class="t-chip ' + j[key] + '" id="chip-' + key + '">측정 중</span></div>' +
+      '<div class="t-body"><div class="t-main">' + numHTML + '<span class="t-unit">' + unit + '</span></div>' + (extra || '') + '</div>' +
+      '<div class="t-ref">정상 ' + j.ref[key] + '</div>' + (key === 'hr' ? '<div class="wave"><canvas id="cv-' + key + '"></canvas></div>' : '') +
+    '</div>';
+  const heart = '<svg width="16" height="16" viewBox="0 0 24 24"><path class="heart" fill="#FF6B7A" d="M12 21s-7.5-4.6-9.6-9.3C.9 8.3 3 5 6.2 5c2 0 3.3 1 5.8 3.2C14.500 6 15.800 5 17.800 5 21 5 23.100 8.300 21.600 11.700 19.500 16.400 12 21 12 21z"/></svg>';
+  const bpI = '<svg width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="#F1F7F6" stroke-width="2" d="M3 12h4l2-6 4 12 2-6h6"/></svg>';
+  const thI = '<svg width="16" height="16" viewBox="0 0 24 24"><rect x="10" y="3" width="4" height="12" rx="2" fill="#FFC857"/><circle cx="12" cy="17.500" r="3.500" fill="#FFC857"/></svg>';
+  const lungs = '<div class="lung-wrap"><svg width="34" height="26" viewBox="0 0 34 26"><g class="lungs"><path fill="#B8E86A" d="M14 3c0 0-9 4-11 15-1 5 2 6 5 5 4-1 6-4 6-8z"/><path fill="#B8E86A" d="M20 3c0 0 9 4 11 15 1 5-2 6-5 5-4-1-6-4-6-8z"/></g></svg><div class="bw"><span>들숨</span><span>날숨</span></div></div>';
+  const gauge = '<svg width="46" height="30" viewBox="0 0 46 30" aria-hidden="true"><path d="M5 26a18 18 0 0 1 36 0" fill="none" stroke="#2A474B" stroke-width="5"/><path d="M5 26a18 18 0 0 1 12-17" fill="none" stroke="#3B5F8A" stroke-width="5"/><path d="M29 9a18 18 0 0 1 12 17" fill="none" stroke="#8A3B3B" stroke-width="5"/><line class="needle" id="needle" x1="23" y1="26" x2="23" y2="10" stroke="#FFC857" stroke-width="2.500" stroke-linecap="round" style="transform-origin:23px 26px;transform:rotate(-75deg)"/><circle cx="23" cy="26" r="3" fill="#FFC857"/></svg>';
+  return '<div class="monitor" id="monitor">' +
+    '<div class="mon-bar"><span class="mon-status" id="monStatus"><i class="dot"></i><span id="monTxt">측정 중…</span></span><span>병상 ' + (S.idx + 1) + '번 · ' + esc(p.name) + '</span></div>' +
+    tile('t-hr', 'hr', '맥박수', heart, '<span class="t-num" id="n-hr">0</span>', '회/분') +
+    tile('t-bp', 'bp', '혈압', bpI, '<span class="t-num"><span id="n-sys">0</span>/<span id="n-dia">0</span></span>', 'mmHg') +
+    tile('t-temp', 'temp', '체온', thI, '<span class="t-num" id="n-temp">0.0</span>', '℃', gauge) +
+    tile('t-rr', 'rr', '호흡수', '', '<span class="t-num" id="n-rr">0</span>', '회/분', lungs) +
+    '</div>';
+}
+function renderPatient(i){
+  S.idx = i;
+  stopWaves();
+  renderQueue();
+  const p = PATIENTS[i], j = judge(p);
+  const systems = SYS.filter(s => p.blanks.some(b => b.s === s));
+  const info =
+    '<div class="info-grid">' +
+      '<div class="ic"><span class="il">환자 이름</span><span class="iv">' + esc(p.name) + '</span></div>' +
+      '<div class="ic"><span class="il">나이 / 성별</span><span class="iv">' + p.age + '세 / ' + esc(p.gender) + '</span></div>' +
+      '<div class="ic"><span class="il">난이도</span><span class="lv l' + p.level + '">' + esc(CONFIG.levelNames[p.level]) + '</span></div>' +
+      '<div class="ic"><span class="il">환자 번호</span><span class="iv mono">' + (i + 1) + ' / ' + PATIENTS.length + '</span></div>' +
+      '<div class="ic w2"><span class="il">진단명</span><span class="iv">' + esc(p.diagnosis) + '</span></div>' +
+      '<div class="ic w2"><span class="il">협진 진료과</span><div class="dchips">' +
+        systems.map(s => '<span class="dchip ' + SCLS[s] + '">' + esc(CONFIG.depts[s]) + '</span>').join('') + '</div></div>' +
+    '</div>';
+  const s1 = secHTML(1, '주 호소 증상', '환자가 직접 한 말', '<div class="quote">' + esc(p.quote) + '</div>');
+  const s2 = secHTML(2, '바이탈 측정', '몸의 상태를 나타내는 숫자', monitorHTML(p, j), { hide: true });
+  let labs = '';
+  if (p.labs && p.labs.length){
+    labs = '<table class="labs"><thead><tr><th>검사 항목</th><th>결과</th><th>정상 범위</th><th>판정</th></tr></thead><tbody>' +
+      p.labs.map(l => {
+        const c = l.flag === '높음' ? 'high' : l.flag === '낮음' ? 'low' : 'ok';
+        return '<tr><td class="b">' + esc(l.name) + '</td><td>' + esc(l.value) + ' <small>' + esc(l.unit || '') + '</small></td><td>' + esc(l.ref || '') + '</td><td><span class="flag ' + c + '">' + esc(l.flag) + '</span></td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  const s3 = secHTML(3, '검사 결과 · 담당의 설명', '끝까지 읽어 보세요', labs + '<div class="note"><span class="note-label">담당의 설명</span>' + p.findings + '</div>', { hide: true });
+  const lock = '<div class="lockbox"><b>🔒 진단 차트는 아직 잠겨 있어요</b>아래 세 가지를 모두 확인하면 열립니다.<br>' +
+    '<ul class="ck" id="ck"><li id="ck1">주 호소 증상 확인</li><li id="ck2">바이탈 확인</li><li id="ck3">검사 결과 · 설명 확인</li></ul></div>';
+  const s4 = secHTML(4, '진단 차트', '빈칸을 채워 진단을 완성하세요', lock);
+  $('#screenChart').innerHTML = info + s1 + s2 + s3 + s4;
+  $('#screenChart').onclick = e => {
+    const b = e.target.closest('[data-confirm]');
+    if (b) confirmStep(+b.dataset.confirm);
+  };
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+function smoothTo(el){ el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' }); }
+function stampIt(n){
+  $('#hint' + n).textContent = '';
+  $('#cbtn' + n).replaceWith(Object.assign(document.createElement('span'), { className: 'stamp', textContent: '확인 완료' }));
+  const ck = $('#ck' + n); if (ck) ck.classList.add('done');
+}
+function confirmStep(n){
+  const st = S.p[S.idx];
+  if (st.stage >= n) return;
+  st.stage = n;
+  stampIt(n);
+  if (n < 3){
+    const next = $('#sec' + (n + 1));
+    next.classList.remove('hidden'); next.classList.add('reveal');
+    if (n === 1) startMonitor();
+    if (n === 2){ /* 소견 공개 */ }
+    setTimeout(() => smoothTo(next), 60);
+  } else {
+    unlockChart();
+  }
+}
+
+/* ---------- 바이탈 모니터 동작 ---------- */
+function startMonitor(){
+  const p = PATIENTS[S.idx], v = p.vitals, j = judge(p);
+  const btn = $('#cbtn2'); btn.disabled = true; $('#hint2').textContent = '측정이 끝나면 확인할 수 있어요…';
+  let pending = 4;
+  const fin = () => {
+    if (--pending > 0) return;
+    ['hr','bp','temp','rr'].forEach(k => { const c = $('#chip-' + k); c.textContent = FLAGTXT[j[k]]; });
+    $('#monStatus').classList.add('ok'); $('#monTxt').textContent = '측정 완료';
+    btn.disabled = false; $('#hint2').textContent = '높음·낮음 표시가 있는 값을 살펴보세요';
+  };
+  const ms = 1500;
+  countUp($('#n-hr'), v.hr, 0, ms, fin);
+  countUp($('#n-sys'), v.bp[0], 0, ms, fin); countUp($('#n-dia'), v.bp[1], 0, ms, () => {});
+  countUp($('#n-temp'), v.temp, 1, ms, fin);
+  countUp($('#n-rr'), v.rr, 0, ms, fin);
+  const deg = Math.max(-75, Math.min(75, (v.temp - 37.5) * 30));
+  setTimeout(() => { const nd = $('#needle'); if (nd) nd.style.transform = 'rotate(' + deg + 'deg)'; }, 80);
+  const lungs = $('.lungs'); if (lungs) lungs.style.animationDuration = Math.max(1.6, 60 / v.rr * 2) + 's';
+  const bw = $$('.bw span'); bw.forEach(s => s.style.animationDuration = Math.max(1.6, 60 / v.rr * 2) + 's');
+  const heart = $('.heart'); if (heart) heart.style.animationDuration = (60 / v.hr) + 's';
+  const hz = v.hr / 60;
+  const hrc = $('#cv-hr');
+  if (hrc) addWave(hrc, ecgFn, hz, j.hr === 'ok' ? '#46E28C' : j.hr === 'high' ? '#FF8A8A' : '#FFB454', 1);
+  startWaves();
+}
+
+/* ---------- 진단 차트 열기 ---------- */
+function unlockChart(){
+  const p = PATIENTS[S.idx], st = S.p[S.idx];
+  const rows = p.blanks.map((b, k) =>
+    '<div class="brow ' + SCLS[b.s] + '" data-b="' + k + '">' +
+      '<div class="brow-top"><span class="qnum">' + (k + 1) + '</span></div>' +
+      '<div class="blabel">' + esc(b.label) + '</div>' +
+      '<input class="binput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="' + esc(b.ph || '') + '" aria-label="' + (k + 1) + '번 답">' +
+      '<div class="bfoot"><span class="fb"></span><span class="wc"></span></div>' +
+      (KEYMODE ? '<div class="answer-key">정답: ' + esc(b.answers.join(' / ')) + '</div>' : '') +
+    '</div>').join('');
+  const last = S.idx === PATIENTS.length - 1;
+  $('#body4').innerHTML = rows +
+    '<div class="chart-actions"><span class="attempt" id="attempt"></span>' +
+    '<button class="btn" id="checkBtn">진단 확정하기</button>' +
+    '<button class="btn next hidden" id="nextBtn">' + (last ? '결과 보기 ▶' : '다음 환자 ▶') + '</button></div>';
+  const sec = $('#sec4'); sec.classList.add('reveal');
+  $$('.binput').forEach((inp, k) => {
+    inp.addEventListener('input', () => { inp.classList.remove('wrong'); });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); checkAll(); } });
+  });
+  $('#checkBtn').onclick = checkAll;
+  $('#nextBtn').onclick = () => { last ? renderEssay() : renderPatient(S.idx + 1); };
+  setTimeout(() => { smoothTo(sec); const f = $('.binput'); f && f.focus({ preventScroll: true }); }, 60);
+}
+const MAX_WRONG = 3; // 오답을 이만큼 초과하면(4회째 오답부터) 자동으로 틀린 문제 처리하고 다음으로 넘어갑니다. 숫자를 바꾸면 기준을 조정할 수 있어요.
+function checkAll(){
+  const p = PATIENTS[S.idx], st = S.p[S.idx];
+  st.attempts++;
+  let empty = 0;
+  $$('.brow').forEach(row => {
+    const k = +row.dataset.b, b = p.blanks[k], bs = st.blanks[k];
+    if (bs.done) return;
+    const inp = $('.binput', row), fb = $('.fb', row), wc = $('.wc', row);
+    if (!norm(inp.value)){ fb.textContent = '답을 입력해 주세요.'; fb.className = 'fb show empty'; empty++; return; }
+    if (isCorrect(b, inp.value)){
+      bs.done = true; inp.disabled = true; inp.classList.remove('wrong'); inp.classList.add('correct');
+      fb.className = 'fb'; fb.textContent = '';
+    } else {
+      bs.wrong++; inp.classList.add('wrong');
+      if (bs.wrong > MAX_WRONG){
+        bs.done = true; bs.failed = true;
+        inp.disabled = true; inp.classList.remove('wrong'); inp.classList.add('failed');
+        fb.textContent = '오답으로 처리했어요.'; fb.className = 'fb show failed';
+      } else {
+        fb.textContent = '아직 정답이 아니에요. 설명을 다시 읽고 동료 전문의와 의논해 보세요.'; fb.className = 'fb show';
+      }
+    }
+    if (bs.wrong > 0){ wc.textContent = '오답 ' + bs.wrong; wc.classList.add('show'); }
+  });
+  const done = st.blanks.filter(x => x.done).length;
+  const failedTotal = st.blanks.filter(x => x.failed).length;
+  $('#attempt').textContent = '정답 ' + (done - failedTotal) + ' / ' + st.blanks.length + (failedTotal ? ' · 자동 처리 ' + failedTotal + '건' : '') + ' · 제출 ' + st.attempts + '회';
+  if (done === st.blanks.length){
+    st.done = true;
+    $('#checkBtn').classList.add('hidden'); $('#nextBtn').classList.remove('hidden');
+    $('#attempt').textContent = failedTotal ? '진단 종료 (자동 처리 ' + failedTotal + '건 포함)' : '진단 완료! 모든 빈칸을 맞혔어요.';
+    $('#nextBtn').focus({ preventScroll: false });
+  }
+}
+
+/* ---------- 서술형 문제 ---------- */
+function renderEssay(){
+  stopWaves();
+  $('#screenChart').classList.add('hidden');
+  $('#queue').classList.add('hidden');
+  const qs = CONFIG.essayQuestions || [];
+  const el = $('#screenEssay');
+  el.classList.remove('hidden');
+  if (!qs.length){ renderResult(); return; }
+  el.innerHTML =
+    '<div class="sec-head" style="margin:16px 18px 0;border-radius:4px"><span>✍️ 서술형 문제</span><span class="sec-sub">조원과 논의하여 답변을 작성하세요.</span></div>' +
+    '<div class="essay-note">이 답은 자동으로 채점되지 않아요. 선생님이 직접 읽고 채점하실 거예요.</div>' +
+    '<div class="essay-wrap">' + qs.map((q, i) =>
+      '<div class="sec"><div class="essay-q">' +
+        '<p><b>' + (i + 1) + '.</b> ' + esc(q) + '</p>' +
+        '<textarea class="etextarea" id="essay' + i + '" placeholder="여기에 작성하세요…"></textarea>' +
+      '</div></div>').join('') + '</div>' +
+    '<div class="essay-submit"><button class="btn" id="essaySubmit">결과 보기 ▶</button></div>';
+  qs.forEach((_, i) => $('#essay' + i).addEventListener('input', e => { S.essay[i] = e.target.value; }));
+  $('#essaySubmit').onclick = () => {
+    qs.forEach((_, i) => { S.essay[i] = $('#essay' + i).value; });
+    renderResult();
+  };
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+/* ---------- 결과 집계 ---------- */
+function collect(){
+  const per = {}; SYS.forEach(s => per[s] = { q: 0, wrong: 0, clean: 0 });
+  const items = [];
+  let total = 0, clean = 0, wrong = 0;
+  PATIENTS.forEach((p, i) => p.blanks.forEach((b, k) => {
+    const w = S.p[i].blanks[k].wrong;
+    per[b.s].q++; per[b.s].wrong += w; if (!w) per[b.s].clean++;
+    total++; wrong += w; if (!w) clean++;
+    items.push({ pi: i, k, s: b.s, w, label: b.label, name: p.name });
+  }));
+  const top = items.filter(x => x.w > 0).sort((a, b) => b.w - a.w || a.pi - b.pi).slice(0, 5);
+  return { per, total, clean, wrong, top };
+}
+function heatClass(w){ return w === 0 ? 'z' : w === 1 ? 'w1' : w === 2 ? 'w2' : 'w3'; }
+
+function renderResult(){
+  stopWaves();
+  $('#screenChart').classList.add('hidden');
+  $('#screenEssay').classList.add('hidden');
+  $('#queue').classList.add('hidden');
+  const R = collect(), maxQ = Math.max.apply(null, PATIENTS.map(p => p.blanks.length));
+  const pct = Math.round(R.clean / R.total * 100);
+  let head = '<th>환자</th>'; for (let k = 1; k <= maxQ; k++) head += '<th>' + k + '</th>'; head += '<th>합계</th>';
+  const body = PATIENTS.map((p, i) => {
+    let tds = '', tot = 0;
+    for (let k = 0; k < maxQ; k++){
+      const b = p.blanks[k];
+      if (!b){ tds += '<td></td>'; continue; }
+      const w = S.p[i].blanks[k].wrong; tot += w;
+      tds += '<td class="hc ' + SCLS[b.s] + ' ' + heatClass(w) + '">' + w + '</td>';
+    }
+    return '<tr><td class="nm">' + (i + 1) + '. ' + esc(p.name) + '<small>' + esc(CONFIG.levelNames[p.level]) + ' · ' + esc(p.diagnosis) + '</small></td>' + tds + '<td class="tot">' + tot + '</td></tr>';
+  }).join('');
+  const el = $('#screenResult');
+  el.classList.remove('hidden');
+  el.innerHTML =
+    '<h2>진료 종료 · 결과 보고서</h2>' +
+    '<p class="lead">' + esc(S.team) + ' 진료팀이 환자 ' + PATIENTS.length + '명의 진단 차트를 모두 완성했습니다. 아래 <b>이미지 저장</b> 버튼으로 결과를 캡처해 선생님께 제출하세요.</p>' +
+    '<div class="stats">' +
+      '<div class="stat"><div class="n">' + R.clean + '/' + R.total + '</div><div class="l">한 번에 맞힌 문항 (' + pct + '%)</div></div>' +
+      '<div class="stat bad"><div class="n">' + R.wrong + '</div><div class="l">전체 오답 횟수</div></div>' +
+      '<div class="stat"><div class="n">' + PATIENTS.length + '</div><div class="l">진료한 환자 수</div></div></div>' +
+    '<div class="h3">환자 · 문항별 오답 횟수<small>숫자가 클수록 많이 틀린 문항</small></div>' +
+    '<div class="heat-wrap"><table class="heat"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+    '<div class="legend">문항 위쪽 색 띠: ' + SYS.map(s => '<i style="background:' + SCOL[s] + '"></i>' + CONFIG.depts[s]).join('') + '</div>' +
+    ((CONFIG.essayQuestions || []).length ?
+      '<div class="h3">서술형 답안<small>선생님이 직접 채점하세요</small></div>' +
+      CONFIG.essayQuestions.map((q, i) =>
+        '<div class="essay-q" style="padding:0;margin-bottom:12px"><p><b>' + (i + 1) + '.</b> ' + esc(q) + '</p>' +
+        '<div class="essay-view">' + esc(S.essay[i] || '') + '</div></div>').join('')
+      : '') +
+    '<div class="result-actions"><button class="btn" id="imgBtn">📷 이미지 저장</button></div>' +
+    '<details class="reportbox"><summary>제출용 글 보기</summary><textarea id="reportText" readonly></textarea></details>';
+  $('#reportText').value = reportText(R);
+  $('#imgBtn').onclick = saveImage;
+  window.scrollTo({ top: 0, behavior: 'auto' });
+}
+function reportText(R){
+  const L = [];
+  L.push('[' + CONFIG.clinicName + ' 결과] ' + S.team);
+  L.push('담당의: ' + SYS.map(s => CONFIG.depts[s] + ' ' + S.docs[s]).join(', '));
+  L.push('한 번에 맞힌 문항 ' + R.clean + '/' + R.total + ' · 전체 오답 ' + R.wrong + '회');
+  L.push('');
+  L.push('■ 과별 오답: ' + SYS.map(s => s + ' ' + R.per[s].wrong + '회').join(' / '));
+  L.push('');
+  PATIENTS.forEach((p, i) => {
+    const ws = S.p[i].blanks.map(b => b.wrong);
+    L.push((i + 1) + '. ' + p.name + '(' + CONFIG.levelNames[p.level] + ') 오답 ' + ws.reduce((a, b) => a + b, 0) + '회 [' + ws.join(',') + ']');
+  });
+  if (R.top.length){ L.push(''); L.push('■ 많이 틀린 문항'); R.top.forEach(t => L.push('- ' + (t.pi + 1) + '번 ' + t.name + ' ' + (t.k + 1) + '번 문항 (' + t.w + '회): ' + t.label)); }
+  if ((CONFIG.essayQuestions || []).length){
+    L.push(''); L.push('■ 서술형 답안 (채점 필요)');
+    CONFIG.essayQuestions.forEach((q, i) => { L.push((i + 1) + '. ' + q); L.push(S.essay[i] ? S.essay[i] : '(작성하지 않음)'); L.push(''); });
+  }
+  return L.join('\n');
+}
+
+/* ---------- 이미지 저장 (라이브러리 없이 직접 그림) ---------- */
+function wrapText(c, text, maxW){
+  const lines = []; let cur = '';
+  for (const ch of String(text)){
+    if (c.measureText(cur + ch).width > maxW && cur){ lines.push(cur); cur = ch; } else cur += ch;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+function rr(c, x, y, w, h, r){ c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+function drawReport(c, W, R){
+  const F = "'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif", M = "'Space Mono','Consolas',monospace";
+  const maxQ = Math.max.apply(null, PATIENTS.map(p => p.blanks.length));
+  let y = 0;
+  // 배경 + 종이
+  c.fillStyle = '#4A6B68'; c.fillRect(0, 0, W, 6000);
+  const px = 30, pw = W - 60; let paperTop = 40;
+  // (종이는 마지막에 높이를 알고 나서 그리므로 먼저 내용을 그린 뒤 뒤에 깔지 않고, 높이를 미리 계산)
+  const H = drawBody(true);
+  c.fillStyle = '#4A6B68'; c.fillRect(0, 0, W, H);
+  c.fillStyle = '#FFFEFA'; rr(c, px, paperTop, pw, H - paperTop - 30, 8); c.fill();
+  drawBody(false);
+  return H;
+
+  function drawBody(measure){
+    let y = paperTop, x0 = px + 34, cw = pw - 68;
+    const T = (t, x, yy, font, col, align) => { if (measure) return; c.font = font; c.fillStyle = col; c.textAlign = align || 'left'; c.fillText(t, x, yy); };
+    const RECT = (x, yy, w, h, col, r) => { if (measure) return; c.fillStyle = col; r ? (rr(c, x, yy, w, h, r), c.fill()) : c.fillRect(x, yy, w, h); };
+    // 헤더
+    RECT(x0, y + 26, 46, 46, '#1F7A70', 10); T('✚', x0 + 23, y + 59, '900 26px ' + F, '#fff', 'center');
+    T(CONFIG.hospitalName, x0 + 62, y + 46, '900 24px ' + F, '#1E2B2A');
+    T(CONFIG.clinicName + ' · 진료 결과 보고서', x0 + 62, y + 70, '15px ' + F, '#566664');
+    T(new Date().toLocaleDateString('ko-KR'), x0 + cw, y + 46, '700 15px ' + M, '#566664', 'right');
+    y += 92; RECT(x0, y, cw, 3, '#1E2B2A'); RECT(x0, y + 5, cw, 1, '#1E2B2A'); y += 30;
+    T('조: ' + S.team, x0, y + 16, '900 26px ' + F, '#1E2B2A'); y += 32;
+    if (!measure){ c.font = '14px ' + F; }
+    const docLine = SYS.map(s => CONFIG.depts[s] + ' ' + S.docs[s]).join('   |   ');
+    T(docLine, x0, y + 14, '14px ' + F, '#566664'); y += 40;
+    // 통계 3칸
+    const sw = (cw - 24) / 3, stats = [[R.clean + '/' + R.total, '한 번에 맞힌 문항 (' + Math.round(R.clean / R.total * 100) + '%)', '#155850'], [String(R.wrong), '전체 오답 횟수', '#C1394E'], [String(PATIENTS.length), '진료한 환자 수', '#155850']];
+    stats.forEach((s, i) => {
+      const sx = x0 + i * (sw + 12);
+      if (!measure){ c.strokeStyle = '#1E2B2A'; c.lineWidth = 2; rr(c, sx, y, sw, 84, 8); c.stroke(); }
+      T(s[0], sx + 16, y + 44, '700 34px ' + M, s[2]); T(s[1], sx + 16, y + 68, '13px ' + F, '#566664');
+    });
+    y += 108;
+    // 히트맵
+    T('환자 · 문항별 오답 횟수', x0, y + 12, '900 16px ' + F, '#1E2B2A'); y += 26;
+    const nmW = 250, totW = 56, cellW = Math.min(46, (cw - nmW - totW) / maxQ), rowH = 46;
+    RECT(x0, y, cw, 32, '#ECF2F1');
+    T('환자', x0 + 10, y + 21, '700 13px ' + F, '#1E2B2A');
+    for (let k = 0; k < maxQ; k++) T(String(k + 1), x0 + nmW + k * cellW + cellW / 2, y + 21, '700 13px ' + F, '#1E2B2A', 'center');
+    T('합계', x0 + cw - totW / 2, y + 21, '700 13px ' + F, '#1E2B2A', 'center');
+    y += 32;
+    const HC = { 0: ['#E4F4EA', '#2E8B57'], 1: ['#FBDDE1', '#B5364A'], 2: ['#F3A7B2', '#8E1F33'], 3: ['#D24B62', '#fff'] };
+    PATIENTS.forEach((p, i) => {
+      if (!measure){ c.fillStyle = '#DAD5C6'; c.fillRect(x0, y + rowH - 1, cw, 1); }
+      T((i + 1) + '. ' + p.name, x0 + 10, y + 20, '700 14px ' + F, '#1E2B2A');
+      T(CONFIG.levelNames[p.level] + ' · ' + p.diagnosis, x0 + 10, y + 38, '11px ' + F, '#8A9795');
+      let tot = 0;
+      p.blanks.forEach((b, k) => {
+        const w = S.p[i].blanks[k].wrong; tot += w;
+        const cc = HC[Math.min(w, 3)], cx = x0 + nmW + k * cellW;
+        RECT(cx + 2, y + 3, cellW - 4, rowH - 8, cc[0], 4);
+        RECT(cx + 2, y + 3, cellW - 4, 4, SCOL[b.s]);
+        T(String(w), cx + cellW / 2, y + 29, '700 14px ' + M, cc[1], 'center');
+      });
+      T(String(tot), x0 + cw - totW / 2, y + 29, '700 14px ' + M, '#1E2B2A', 'center');
+      y += rowH;
+    });
+    // 범례
+    y += 18; let lx = x0;
+    SYS.forEach(s => { RECT(lx, y - 10, 12, 12, SCOL[s], 2); T(CONFIG.depts[s], lx + 18, y, '12px ' + F, '#566664'); lx += 130; });
+    T('숫자 = 오답 횟수 (0이면 한 번에 정답)', x0 + cw, y, '12px ' + F, '#8A9795', 'right'); y += 34;
+    y += 18;
+    // 서술형 답안
+    const eqs = CONFIG.essayQuestions || [];
+    if (eqs.length){
+      T('서술형 답안 (채점 필요)', x0, y + 12, '900 16px ' + F, '#1E2B2A'); y += 28;
+      eqs.forEach((q, i) => {
+        if (!measure) c.font = '700 13.5px ' + F;
+        const qlines = wrapText(c, (i + 1) + '. ' + q, cw - 28);
+        if (!measure) c.font = '13.5px ' + F;
+        const raw = (S.essay[i] || '').trim() || '(작성하지 않음)';
+        let alines = [];
+        raw.split('\n').forEach(seg => { alines = alines.concat(wrapText(c, seg, cw - 28)); });
+        alines = alines.slice(0, 20);
+        const h = 14 + qlines.length * 19 + 8 + alines.length * 19 + 14;
+        RECT(x0, y, cw, h, '#F8F6EC', 6); RECT(x0, y, 5, h, '#1F7A70');
+        let yy = y + 24;
+        qlines.forEach(ln => { T(ln, x0 + 16, yy, '700 13.5px ' + F, '#1E2B2A'); yy += 19; });
+        yy += 6;
+        alines.forEach(ln => { T(ln, x0 + 16, yy, '13.5px ' + F, raw === '(작성하지 않음)' ? '#8A9795' : '#333'); yy += 19; });
+        y += h + 10;
+      });
+    }
+    y += 2;
+    T(CONFIG.hospitalName + ' · ' + CONFIG.clinicName + ' · ' + new Date().toLocaleString('ko-KR'), x0 + cw / 2, y + 10, '11.5px ' + F, '#8A9795', 'center');
+    y += 40;
+    return y + 30;
+  }
+}
+async function saveImage(){
+  const btn = $('#imgBtn'); btn.disabled = true; btn.textContent = '이미지 만드는 중…';
+  try {
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    const R = collect(), W = 1100, scale = 2;
+    const probe = document.createElement('canvas').getContext('2d');
+    const H = drawReport(probe, W, R);
+    const cv = document.createElement('canvas'); cv.width = W * scale; cv.height = H * scale;
+    const c = cv.getContext('2d'); c.scale(scale, scale);
+    drawReport(c, W, R);
+    const url = cv.toDataURL('image/png');
+    const name = ('진단클리닉결과_' + S.team + '.png').replace(/[\\/:*?"<>|\s]+/g, '_');
+    $('#mImg').src = url;
+    const a = $('#mDl'); a.href = url; a.download = name;
+    $('#imgModal').classList.remove('hidden');
+    a.click();
+  } catch (e) {
+    alert('이미지를 만들지 못했어요. 화면을 직접 캡처해서 제출해 주세요.');
+    console.error(e);
+  }
+  btn.disabled = false; btn.textContent = '📷 이미지 저장';
+}
+$('#mClose').addEventListener('click', () => $('#imgModal').classList.add('hidden'));
+$('#imgModal').addEventListener('click', e => { if (e.target.id === 'imgModal') $('#imgModal').classList.add('hidden'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('#imgModal').classList.add('hidden'); });
+
+/* ---------- 문항 균형 점검표 (F12 콘솔) ---------- */
+function balanceTable(){
+  const rows = [1, 2, 3].map(lv => {
+    const r = { 단계: CONFIG.levelNames[lv] }; let sum = 0;
+    SYS.forEach(s => { r[s] = PATIENTS.filter(p => p.level === lv).reduce((a, p) => a + p.blanks.filter(b => b.s === s).length, 0); sum += r[s]; });
+    r['합계'] = sum;
+    const vals = SYS.map(s => r[s]);
+    r['균형'] = lv === 1 ? '(기본 단계는 제외)' : (vals.every(v => v === vals[0]) ? '✔ 균등' : '✘ 불균등');
+    return r;
+  });
+  console.log('%c기관계별 문항 수 (응용·심화 단계는 네 기관계가 같아야 합니다)', 'font-weight:bold');
+  console.table(rows);
+}
+window.balanceTable = balanceTable;
+
+buildSetup();
+balanceTable();
+})();
+</script>
+</body>
+</html>
